@@ -73,7 +73,7 @@
     }
     if (!el.memoryFeed) return;
     if (!m.conocimientos.length) {
-      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros guardados aún.</div>`;
+      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros guardados aun.</div>`;
       return;
     }
     el.memoryFeed.innerHTML = m.conocimientos.slice().reverse()
@@ -122,7 +122,19 @@
   }
 
   function calcExpr(t, lang) {
-    const clean = t.replace(/×/g, "*").replace(/÷/g, "/").replace(/\^/g, "**");
+    const raw = t.trim();
+    const sqrtMatch = raw.match(/^(?:√\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*√)$/);
+    if (sqrtMatch) {
+      const num = parseFloat(sqrtMatch[1] || sqrtMatch[2]);
+      if (Number.isFinite(num) && num >= 0) {
+        const res = Number(Math.sqrt(num).toFixed(6));
+        const ans = `√${num} = ${res}`;
+        autoLearn(`√${num}`, String(res), "Ember-Calc");
+        return lang === "de" ? `Rechner: ${ans}` : `Calculadora: ${ans}`;
+      }
+    }
+
+    const clean = raw.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-").replace(/\^/g, "**");
     const m = clean.match(/[\d(][\d\s+\-*/().%]*[\d)]/);
     if (m && /[+\-*/%]/.test(m[0]) && /^[0-9+\-*/().%\s*]+$/.test(m[0])) {
       try {
@@ -161,30 +173,33 @@
             }
           });
           const resumenTotal = d.resultados
-            .map((x) => `• ${x.titulo || x.url}: ${x.resumen}`)
+            .map((x) => `- ${x.titulo || x.url}: ${x.resumen}`)
             .join("\n\n");
           setCode("exploracion_ember.txt", resumenTotal);
           return lang === "de"
-            ? `Ich habe ${d.resultados.length} Seite(n) über deinen Termux-Server gelesen, zusammengefasst und im Speicher abgelegt:\n\n${resumenTotal}`
-            : `Leí ${d.resultados.length} sitio(s) usando tu servidor en Termux, saqué el resumen y ya lo guardé en mi memoria:\n\n${resumenTotal}`;
+            ? `Ich habe ${d.resultados.length} Seite(n) gelesen, zusammengefasst und gespeichert:\n\n${resumenTotal}`
+            : `Lei ${d.resultados.length} sitio(s) con tu servidor, saque el resumen y ya lo guarde en mi memoria:\n\n${resumenTotal}`;
         }
       }
     } catch (_) {}
 
     urls.forEach((u) => {
-      autoLearn(u, "Enlace registrado para lectura cuando el servidor Go en Termux esté activo.", "Ember-Web");
+      autoLearn(u, "Enlace registrado para lectura cuando el servidor Go en Termux este activo.", "Ember-Web");
     });
     setCode("enlaces_pendientes.txt", urls.join("\n"));
     return lang === "de"
-      ? `Ich habe ${urls.length} Link(s) im Panel ({ }) und im Speicher gesichert. Starte den Go-Server in Termux, damit ich die Seiten direkt auslese und zusammenfasse.`
-      : `Guardé ${urls.length} enlace(s) en el panel ({ }) y en memoria. Enciende tu servidor Go en Termux para que Ember entre, lea los sitios y saque los resúmenes automáticamente.`;
+      ? `Ich habe ${urls.length} Link(s) gesichert. Starte den Go-Server in Termux zum Auslesen.`
+      : `Guarde ${urls.length} enlace(s) en el panel ({ }) y en memoria. Enciende tu servidor Go en Termux para leerlos.`;
   }
 
   function replySmart(raw) {
     const { out, notes } = fixTypos(raw);
     const q = out.toLowerCase().trim();
     const lang = resolveLang(out, q);
-    const prefix = notes.length ? `[Corrección: ${notes.join(", ")}]\n` : "";
+    const prefix = notes.length ? `[Correccion: ${notes.join(", ")}]\n` : "";
+
+    const c = calcExpr(out, lang);
+    if (c) return prefix + c;
 
     const mem = loadMemory();
     for (let i = mem.conocimientos.length - 1; i >= 0; i--) {
@@ -194,17 +209,14 @@
       }
     }
 
-    const c = calcExpr(out, lang);
-    if (c) return prefix + c;
-
     if (/\b(plugin|plugins|conector|conectores|termux|editor|tor|aloha|mt manager|navegador|explorar|navegar)\b/i.test(q)) {
       setCode(
         "conectores_ember.txt",
-        `Conectores sistémicos de Ember:\n1. Memoria automática (guarda resúmenes y resultados)\n2. Explorador web (/api/explorar en Go/Termux para leer URLs y aprender)\n3. Panel de código ({ }) y flujo con Termux / Editor / MT Manager`
+        `Conectores sistemicos de Ember:\n1. Memoria automatica (guarda resumenes y resultados)\n2. Explorador web (/api/explorar en Go/Termux para leer URLs)\n3. Panel de codigo ({ }) y flujo con Termux / Editor / MT Manager`
       );
       return prefix + (lang === "de"
-        ? "Ember speichert Gelerntes automatisch und kann über den Go-Server in Termux Webseiten auslesen und zusammenfassen."
-        : "Ember guarda automáticamente lo que aprende y, cuando le pasas enlaces con tu servidor Go activo en Termux, los lee, los resume y se llena de información.");
+        ? "Ember speichert Gelerntes automatisch und kann ueber den Go-Server Webseiten auslesen."
+        : "Ember guarda automaticamente lo que aprende y lee enlaces cuando el servidor Go en Termux esta encendido.");
     }
 
     if (/\bzeit\b/i.test(out) || q.includes("flamedash")) {
@@ -217,12 +229,12 @@
     if (/^(hola|buenas|hey|hi|hallo|guten tag)\b/i.test(q)) {
       return prefix + (lang === "de"
         ? "Hallo, ich bin Ember. Schick mir Links zum Auslesen, Berechnungen oder Fragen zu FLAME."
-        : "¡Hola! Soy Ember. Pásame enlaces para leer y resumir, cálculos o consultas de FLAME.");
+        : "Hola, soy Ember. Pasame enlaces para leer y resumir, calculos o consultas de FLAME.");
     }
 
     return prefix + (lang === "de"
-      ? `Zu "${out}" habe ich noch keinen festen Eintrag, bleibe aber aktiv: Schick mir einen Link dazu oder erkläre es mir kurz, damit ich es speichere.`
-      : `Sobre "${out}" aún no tengo una regla fija, pero sigo activa: pásame un enlace sobre eso o explícame qué es y lo guardo en mi memoria.`);
+      ? `Zu "${out}" habe ich noch keinen festen Eintrag. Schick mir einen Link dazu oder erklaere es mir kurz.`
+      : `Sobre "${out}" aun no tengo un dato guardado. Pasame un enlace o dime que es para guardarlo en memoria.`);
   }
 
   async function sendMsg(txt) {
@@ -236,6 +248,13 @@
       const lang = resolveLang(clean, clean.toLowerCase());
       const res = await tryExploreUrls(urls, lang);
       addMsg("spark", res);
+      return;
+    }
+
+    const lang = resolveLang(clean, clean.toLowerCase());
+    const directCalc = calcExpr(clean, lang);
+    if (directCalc) {
+      addMsg("spark", directCalc);
       return;
     }
 
@@ -259,7 +278,7 @@
 
   function resetChat() {
     if (!el.chatStream) return;
-    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">EMBER IA // ES·DE &amp; MEMORIA</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="conectores ember">Conectores</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
+    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">EMBER IA // ES·DE &amp; MEMORIA</div><h1 class="hero-title">Enciende tu codigo con precision.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Aleman / Zeit</button><button class="chip-fire" data-prompt="conectores ember">Conectores</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
     bindChips();
   }
 
