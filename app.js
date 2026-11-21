@@ -1,8 +1,14 @@
 (() => {
-  const STORAGE_KEY = "spark_ia_web_memoria_v2";
+  const STORAGE_KEY = "spark_ia_web_memoria_v3";
   const API_URL = "http://127.0.0.1:8080";
   let currentMode = "general";
+  let activeLang = "es";
   let lastCode = "// Editor Spark.IA";
+  let profile = {
+    name: "Spark.IA",
+    gender: "femenina",
+    role: "Asistente femenina del núcleo FLAME (ES/DE)",
+  };
 
   const el = {
     sidebar: document.getElementById("sidebar"),
@@ -39,8 +45,13 @@
   function loadMemory() {
     try {
       const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      return { conocimientos: Array.isArray(d.conocimientos) ? d.conocimientos : [] };
-    } catch (_) { return { conocimientos: [] }; }
+      return {
+        conocimientos: Array.isArray(d.conocimientos) ? d.conocimientos : [],
+        cuenta: d.cuenta || profile,
+      };
+    } catch (_) {
+      return { conocimientos: [], cuenta: profile };
+    }
   }
 
   function saveMemory(m) {
@@ -53,13 +64,17 @@
 
   function renderMemory() {
     const m = loadMemory();
-    if (el.statusText) el.statusText.textContent = `Spark ES/DE · ${m.conocimientos.length} notas`;
+    profile = m.cuenta || profile;
+    if (el.statusText) {
+      el.statusText.textContent = `${profile.name} (♀ ${activeLang.toUpperCase()}) · ${m.conocimientos.length} notas`;
+    }
     if (!el.memoryFeed) return;
+    const headerCard = `<div class="memory-chip"><strong>Cuenta:</strong> ${esc(profile.name)} · Identidad ${esc(profile.gender)}</div>`;
     if (!m.conocimientos.length) {
-      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros guardados aún.</div>`;
+      el.memoryFeed.innerHTML = headerCard + `<div class="empty-hint">Sin registros guardados aún.</div>`;
       return;
     }
-    el.memoryFeed.innerHTML = m.conocimientos.slice().reverse()
+    el.memoryFeed.innerHTML = headerCard + m.conocimientos.slice().reverse()
       .map((x) => `<div class="memory-chip"><strong>${esc(x.tema)}</strong>: ${esc(x.dato)}</div>`).join("");
   }
 
@@ -85,13 +100,6 @@
     div.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
-  function detectLang(t) {
-    const l = t.toLowerCase();
-    const de = /\b(ich|du|wir|was|wie|ist|sind|zeit|code|wort|neu|bitte|danke)\b|[äöüß]/.test(l);
-    const es = /\b(hola|que|qué|como|cómo|por|para|es|son|tengo|puedes|codigo|código|tiempo|palabra|nuevo)\b|[ñáéíóú¿¡]/.test(l);
-    return de && !es ? "de" : "es";
-  }
-
   function fixTypos(t) {
     const notes = [];
     let out = t.replace(/\b(~?seit)\b/gi, (m) => {
@@ -99,6 +107,44 @@
       return m.startsWith("~") ? "~Zeit" : "Zeit";
     });
     return { out, notes };
+  }
+
+  function resolveLang(text, lower) {
+    if (/^(español|espanol|en español|habla español|spanish)$/i.test(text.trim())) {
+      activeLang = "es";
+      return "es";
+    }
+    if (/^(alemán|aleman|deutsch|auf deutsch|german)$/i.test(text.trim())) {
+      activeLang = "de";
+      return "de";
+    }
+    const hasDeWords = /\b(ich|du|wir|was|wie|ist|sind|bitte|danke|hallo|guten tag)\b|[äöüß]/i.test(lower);
+    const hasEsWords = /\b(hola|que|qué|como|cómo|dame|codigo|código|tiempo|palabra|nuevo|nueva|cuenta|mujer)\b|[ñáéíóú¿¡]/i.test(lower);
+    if (hasEsWords && !hasDeWords) { activeLang = "es"; return "es"; }
+    if (hasDeWords && !hasEsWords) { activeLang = "de"; return "de"; }
+    return activeLang;
+  }
+
+  function tryCodeRequest(lower, lang) {
+    if (/\bjava\b/i.test(lower)) {
+      setCode("Main.java", `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Spark.IA activa en Java");\n    }\n}`);
+      return lang === "de"
+        ? "Ich habe ein Basis-Beispiel in Java im Code-Editor ({ }) geöffnet."
+        : "Te preparé una base en Java y la abrí en el panel de código ({ }).";
+    }
+    if (/\brust\b/i.test(lower)) {
+      setCode("main.rs", `fn main() {\n    println!("Spark.IA activa en Rust");\n}`);
+      return lang === "de"
+        ? "Ich habe ein Basis-Beispiel in Rust im Code-Editor ({ }) geöffnet."
+        : "Te dejé una base en Rust abierta en el panel de código ({ }).";
+    }
+    if (/\b(javascript|js)\b/i.test(lower)) {
+      setCode("script.js", `export function runSpark() {\n  console.log("Spark.IA activa en JS");\n}`);
+      return lang === "de"
+        ? "Ich habe ein Basis-Beispiel in JavaScript im Code-Editor ({ }) geöffnet."
+        : "Te dejé una base en JavaScript abierta en el panel de código ({ }).";
+    }
+    return null;
   }
 
   function calcExpr(t, lang) {
@@ -117,9 +163,28 @@
 
   function replySmart(raw) {
     const { out, notes } = fixTypos(raw);
-    const lang = detectLang(out);
-    const q = out.toLowerCase();
+    const q = out.toLowerCase().trim();
+    const lang = resolveLang(out, q);
     const prefix = notes.length ? `[Corrección: ${notes.join(", ")}]\n` : "";
+
+    if (/^(español|espanol|en español|habla español)$/i.test(q)) {
+      renderMemory();
+      return prefix + "Listo, cambiamos a español. Estoy lista para ayudarte.";
+    }
+    if (/^(alemán|aleman|deutsch|auf deutsch)$/i.test(q)) {
+      renderMemory();
+      return prefix + "Alles klar, wir sprechen jetzt auf Deutsch. Ich bin bereit.";
+    }
+
+    if (/\b(cuenta|mujer|femenina|genero|género)\b/i.test(q)) {
+      const m = loadMemory();
+      m.cuenta = { name: "Spark.IA", gender: "femenina", role: "Asistente femenina del núcleo FLAME" };
+      saveMemory(m);
+      renderMemory();
+      return prefix + (lang === "de"
+        ? "Dein Konto für Spark.IA ist mit weiblicher Identität gespeichert. Sie gibt dir damit einen klaren Stil und Charakter, auch wenn technische Grenzen separat behandelt werden."
+        : "Tu cuenta de Spark.IA quedó configurada con identidad femenina. Eso le da carácter y constancia al hablar, aunque la capacidad técnica y las reglas del sistema se trabajan aparte.");
+    }
 
     const mem = loadMemory();
     for (let i = mem.conocimientos.length - 1; i >= 0; i--) {
@@ -129,32 +194,35 @@
       }
     }
 
-    const c = calcExpr(out, lang);
-    if (c) return prefix + c;
+    const codeAns = tryCodeRequest(q, lang);
+    if (codeAns) return prefix + codeAns;
+
+    const calcAns = calcExpr(out, lang);
+    if (calcAns) return prefix + calcAns;
 
     if (/\b(plugin|plugins|termux|editor|tor|aloha|mt manager|navegador|calculadora)\b/i.test(q)) {
       setCode("plugins_flame.txt", "Plugins listos: Navegador, Editor { }, Calculadora avanzada, Termux, Tor/Aloha y MT Manager.");
       return prefix + (lang === "de"
-        ? "Plugin-Module bereit: Navegador, Code-Editor ({ }), Rechner und Profile für Termux, Tor/Aloha und MT Manager."
-        : "Módulos listos: Navegador, Editor de código ({ }), Calculadora avanzada y perfiles para Termux, Tor/Aloha y MT Manager.");
+        ? "Ich habe die Module für Navegador, Code-Editor ({ }), Rechner sowie Termux, Tor/Aloha und MT Manager bereit."
+        : "Tengo listos los módulos de Navegador, Editor de código ({ }), Calculadora avanzada y perfiles para Termux, Tor/Aloha y MT Manager.");
     }
 
     if (/\bzeit\b/i.test(out) || q.includes("flamedash")) {
       setCode("ejemplo_zeit.fm", "!stil flamedash\narea= 512x400\nRipetox=2\nactivision~Zeit=inmediato\nactionscript~Zeit=500.ms\nactende~Zeit=original");
       return prefix + (lang === "de"
         ? '"Zeit" steuert in flamedash Ablauf und Phasen zusammen mit Ripetox.'
-        : '"Zeit" controla tiempos y fases en flamedash junto con Ripetox.');
+        : '"Zeit" controla los tiempos y fases en flamedash junto con Ripetox.');
     }
 
     if (/^(hola|buenas|hey|hi|hallo|guten tag)\b/i.test(q)) {
       return prefix + (lang === "de"
         ? "Hallo! Ich bin Spark.IA. Wir können auf Deutsch oder Spanisch über FLAME, ~Zeit, Code oder neue Ideen sprechen."
-        : "¡Hola! Soy Spark.IA. Podemos hablar en español o alemán sobre FLAME, ~Zeit, código o cualquier idea nueva.");
+        : "¡Hola! Soy Spark.IA. Podemos hablar en español o alemán sobre FLAME, ~Zeit, código o lo que quieras crear.");
     }
 
     return prefix + (lang === "de"
-      ? `Zu "${out}" habe ich noch keine feste Regel, bleibe aber dran: Sag mir kurz, ob es um FLAME, ~Zeit, Code oder ein neues Wort geht.`
-      : `Sobre "${out}" aún no tengo una regla fija, pero no me quedo en blanco: dime si va por FLAME, ~Zeit, código o una palabra nueva.`);
+      ? `Zu "${out}" habe ich noch keinen festen Eintrag, aber ich bleibe aktiv: Sag mir, ob es um FLAME, ~Zeit, Code oder ein neues Wort geht.`
+      : `Sobre "${out}" aún no tengo una regla fija, pero sigo activa: dime si va por FLAME, ~Zeit, código o una palabra nueva.`);
   }
 
   async function sendMsg(txt) {
@@ -182,7 +250,7 @@
 
   function resetChat() {
     if (!el.chatStream) return;
-    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">SPARK.IA // ES·DE</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="plugins termux editor">Plugins</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
+    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">SPARK.IA // ES·DE</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="Dame código de Java">Código Java</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
     bindChips();
   }
 
