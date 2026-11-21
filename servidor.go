@@ -83,6 +83,21 @@ _ = os.WriteFile(slugArchivo(tema), data, 0644)
 }
 }
 
+func pareceBloqueoOLogin(txt string) bool {
+l := strings.ToLower(txt)
+marcas := []string{
+"sign in", "sign up", "log in", "iniciar sesion", "iniciar sesión",
+"reload to refresh your session", "you signed in with another tab",
+"access denied", "captcha", "verify you are human",
+}
+for _, m := range marcas {
+if strings.Contains(l, m) {
+return true
+}
+}
+return false
+}
+
 func limpiarTextoHTML(raw string) (string, string) {
 reTitle := regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 titulo := ""
@@ -101,6 +116,9 @@ limpio = strings.ReplaceAll(limpio, "&lt;", "<")
 limpio = strings.ReplaceAll(limpio, "&gt;", ">")
 limpio = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(limpio, " "))
 
+if pareceBloqueoOLogin(limpio) {
+return titulo, "El sitio requiere inicio de sesion o restringe el acceso automatico."
+}
 if len(limpio) > 360 {
 limpio = limpio[:360] + "..."
 }
@@ -111,13 +129,13 @@ func leerSitioSeguro(url string) ResultadoUrl {
 client := &http.Client{Timeout: 10 * time.Second}
 req, err := http.NewRequest("GET", url, nil)
 if err != nil {
-return ResultadoUrl{Url: url, Titulo: url, Resumen: "URL no válida."}
+return ResultadoUrl{Url: url, Titulo: url, Resumen: "URL no valida."}
 }
 req.Header.Set("User-Agent", "EmberIA-Explorer/1.0")
 
 resp, err := client.Do(req)
 if err != nil {
-return ResultadoUrl{Url: url, Titulo: url, Resumen: "Sin conexión al sitio."}
+return ResultadoUrl{Url: url, Titulo: url, Resumen: "Sin conexion al sitio."}
 }
 defer resp.Body.Close()
 
@@ -131,7 +149,7 @@ if titulo == "" {
 titulo = url
 }
 if resumen == "" {
-resumen = "Sin texto plano legible en la respuesta."
+resumen = "Sin texto plano legible."
 }
 guardarDatoEnCarpeta(titulo, resumen, "Ember-Explorer")
 return ResultadoUrl{Url: url, Titulo: titulo, Resumen: resumen}
@@ -211,11 +229,9 @@ _ = json.NewEncoder(w).Encode(map[string]string{"respuesta": resp})
 return
 }
 
-_ = json.NewEncoder(w).Encode(map[string]string{
-"respuesta": "Aún no tengo ese dato guardado; pásame un enlace o dime qué es para guardarlo en memoria.",
-})
+w.WriteHeader(http.StatusNotFound)
 })
 
-fmt.Println("🔥 Ember IA activa en http://127.0.0.1:8080 (carpeta memoria/)")
+fmt.Println("Ember IA activa en http://127.0.0.1:8080")
 _ = http.ListenAndServe(":8080", nil)
 }
