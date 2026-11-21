@@ -1,9 +1,8 @@
 (() => {
-  const STORAGE_KEY = "spark_ia_web_memoria_v1";
+  const STORAGE_KEY = "spark_ia_web_memoria_v2";
   const API_URL = "http://127.0.0.1:8080";
-
   let currentMode = "general";
-  let lastCode = "// Aquí aparecerá el código generado.";
+  let lastCode = "// Editor Spark.IA";
 
   const el = {
     sidebar: document.getElementById("sidebar"),
@@ -26,7 +25,6 @@
     chatStream: document.getElementById("chatStream"),
     chatForm: document.getElementById("chatForm"),
     promptInput: document.getElementById("promptInput"),
-    btnSend: document.getElementById("btnSend"),
     teachModal: document.getElementById("teachModal"),
     btnCloseTeach: document.getElementById("btnCloseTeach"),
     btnCancelTeach: document.getElementById("btnCancelTeach"),
@@ -40,352 +38,231 @@
 
   function loadMemory() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { conocimientos: [] };
-      const parsed = JSON.parse(raw);
-      return {
-        conocimientos: Array.isArray(parsed.conocimientos) ? parsed.conocimientos : [],
-      };
-    } catch (_) {
-      return { conocimientos: [] };
-    }
+      const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      return { conocimientos: Array.isArray(d.conocimientos) ? d.conocimientos : [] };
+    } catch (_) { return { conocimientos: [] }; }
   }
 
-  function saveMemory(mem) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mem));
-    } catch (_) {}
+  function saveMemory(m) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(m)); } catch (_) {}
   }
 
-  function renderMemoryFeed() {
-    const mem = loadMemory();
-    el.statusText.textContent = `Memoria: ${mem.conocimientos.length} aprendidos`;
-    if (!mem.conocimientos.length) {
-      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros recientes.</div>`;
+  function esc(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function renderMemory() {
+    const m = loadMemory();
+    if (el.statusText) el.statusText.textContent = `Spark ES/DE · ${m.conocimientos.length} notas`;
+    if (!el.memoryFeed) return;
+    if (!m.conocimientos.length) {
+      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros guardados aún.</div>`;
       return;
     }
-    el.memoryFeed.innerHTML = mem.conocimientos
-      .slice()
-      .reverse()
-      .map(
-        (item) =>
-          `<div class="memory-chip"><strong>${escapeHtml(item.tema)}</strong>: ${escapeHtml(item.dato)}</div>`
-      )
-      .join("");
+    el.memoryFeed.innerHTML = m.conocimientos.slice().reverse()
+      .map((x) => `<div class="memory-chip"><strong>${esc(x.tema)}</strong>: ${esc(x.dato)}</div>`).join("");
   }
 
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
+  function setSidebarOpen(o) { el.sidebar?.classList.toggle("closed", !o); }
+  function setArtifactOpen(o) { el.artifactPanel?.classList.toggle("hidden", !o); }
 
-  function setSidebarOpen(open) {
-    if (!el.sidebar) return;
-    if (open) {
-      el.sidebar.classList.remove("closed");
-    } else {
-      el.sidebar.classList.add("closed");
-    }
-  }
-
-  function setArtifactOpen(open) {
-    if (!el.artifactPanel) return;
-    if (open) {
-      el.artifactPanel.classList.remove("hidden");
-    } else {
-      el.artifactPanel.classList.add("hidden");
-    }
-  }
-
-  function setCodeArtifact(title, code) {
+  function setCode(title, code) {
     lastCode = code;
     if (el.artifactTitle) el.artifactTitle.textContent = title;
-    if (el.artifactCode) el.artifactCode.textContent = code;
+    if (el.artifactCode) {
+      el.artifactCode.textContent = code;
+      el.artifactCode.setAttribute("contenteditable", "true");
+    }
     setArtifactOpen(true);
   }
 
-  function appendMessage(role, text) {
-    const hero = el.chatStream.querySelector(".welcome-hero");
-    if (hero) hero.remove();
-
+  function addMsg(role, text) {
+    el.chatStream?.querySelector(".welcome-hero")?.remove();
     const div = document.createElement("div");
     div.className = `msg ${role}`;
     div.textContent = text;
-    el.chatStream.appendChild(div);
+    el.chatStream?.appendChild(div);
     div.scrollIntoView({ behavior: "smooth", block: "end" });
   }
 
-  function resetChat() {
-    el.chatStream.innerHTML = `
-      <div class="welcome-hero">
-        <div class="hero-badge">SPARK.IA // FUEGO &amp; CRISTAL</div>
-        <h1 class="hero-title">Enciende tu código con precisión.</h1>
-        <p class="hero-subtitle">
-          Pregunta por <code>flamedash</code>, calcula tiempos, genera código base o prueba palabras nuevas como <code>patatim</code>.
-        </p>
-        <div class="quick-prompts">
-          <button class="chip-fire" data-prompt="flamedash">flamedash</button>
-          <button class="chip-fire" data-prompt="generar codigo flame, js y rust">Plantillas FLAME / JS / Rust</button>
-          <button class="chip-fire" data-prompt="250.ms * Ripetox=8 en s">Calcular ~zeit</button>
-          <button class="chip-fire" data-prompt="patatim">Probar patatim</button>
-        </div>
-      </div>
-    `;
-    bindQuickPrompts();
+  function detectLang(t) {
+    const l = t.toLowerCase();
+    const de = /\b(ich|du|wir|was|wie|ist|sind|zeit|code|wort|neu|bitte|danke)\b|[äöüß]/.test(l);
+    const es = /\b(hola|que|qué|como|cómo|por|para|es|son|tengo|puedes|codigo|código|tiempo|palabra|nuevo)\b|[ñáéíóú¿¡]/.test(l);
+    return de && !es ? "de" : "es";
   }
 
-  function tryMath(text) {
-    const clean = text.replace(/×/g, "*").replace(/\*\*/g, "^");
-    // Repetox: ej. 250.ms * Ripetox=8 en s
-    const repMatch = clean.match(/(\d+(?:\.\d+)?)\.(ms|s|m|h)[^\d\n]+(?:ripetox|repeticiones|veces)\s*=?\s*(\d+)/i);
-    if (repMatch) {
-      const val = parseFloat(repMatch[1]);
-      const unit = repMatch[2].toLowerCase();
-      const rep = parseFloat(repMatch[3]);
-      const total = val * rep;
-      const toS = clean.match(/\ben\s+s\b/i);
-      if (toS && unit === "ms") {
-        return `Spark: ${val}.ms × Ripetox=${rep} = ${total}.ms (${total / 1000}.s)`;
-      }
-      return `Spark: ${val}.${unit} × Ripetox=${rep} = ${total}.${unit}`;
-    }
+  function fixTypos(t) {
+    const notes = [];
+    let out = t.replace(/\b(~?seit)\b/gi, (m) => {
+      notes.push('"seit" -> "Zeit"');
+      return m.startsWith("~") ? "~Zeit" : "Zeit";
+    });
+    return { out, notes };
+  }
 
-    // Expresión matemática simple
-    const exprMatch = clean.match(/(?:-?\d+(?:\.\d+)?|\()[\d\s+\-*/%^().]*[\d\)]/);
-    if (exprMatch && /[+\-*/%^]/.test(exprMatch[0])) {
-      const expr = exprMatch[0].replace(/\^/g, "**");
-      if (/^[0-9+\-*/().%\s*]+$/.test(expr)) {
-        try {
-          const result = Function(`"use strict"; return (${expr});`)();
-          if (typeof result === "number" && Number.isFinite(result)) {
-            return `Spark: Resultado de ${exprMatch[0].trim()} = ${result}`;
-          }
-        } catch (_) {}
-      }
+  function calcExpr(t, lang) {
+    const clean = t.replace(/×/g, "*").replace(/÷/g, "/").replace(/\^/g, "**");
+    const m = clean.match(/[\d(][\d\s+\-*/().%]*[\d)]/);
+    if (m && /[+\-*/%]/.test(m[0]) && /^[0-9+\-*/().%\s*]+$/.test(m[0])) {
+      try {
+        const val = Function(`"use strict"; return (${m[0]});`)();
+        if (typeof val === "number" && Number.isFinite(val)) {
+          return lang === "de" ? `Rechner: ${m[0].trim()} = ${val}` : `Calculadora: ${m[0].trim()} = ${val}`;
+        }
+      } catch (_) {}
     }
     return null;
   }
 
-  function generateTemplates() {
-    const code = `// --- FLAME (.fm) ---
-!stil flamedash
-area= 512×400
-Ripetox=2
-activision~zeit=inmediato
-actionscript~zeit=250.ms
-actende~zeit=original
-
-// --- JavaScript ---
-export function runFlameStep(repeticiones = 2) {
-  for (let i = 1; i <= repeticiones; i++) {
-    console.log("Ciclo Spark:", i);
-  }
-}
-
-// --- Rust ---
-pub fn run_flame_step(repeticiones: usize) {
-    for i in 1..=repeticiones {
-        println!("Ciclo Spark: {}", i);
-    }
-}`;
-    setCodeArtifact("plantillas_flame_js_rust.txt", code);
-    return "Spark: Generé las plantillas base de FLAME, JavaScript y Rust. Las abrí en el panel de código ({ }).";
-  }
-
-  function localSparkReply(rawText) {
-    const text = rawText.trim();
-    if (!text) return "Spark: Escribe algo para que pueda ayudarte.";
+  function replySmart(raw) {
+    const { out, notes } = fixTypos(raw);
+    const lang = detectLang(out);
+    const q = out.toLowerCase();
+    const prefix = notes.length ? `[Corrección: ${notes.join(", ")}]\n` : "";
 
     const mem = loadMemory();
-    const q = text.toLowerCase();
-
-    // 1. Buscar en memoria aprendida
     for (let i = mem.conocimientos.length - 1; i >= 0; i--) {
-      const item = mem.conocimientos[i];
-      if (item.tema.toLowerCase().includes(q) || item.dato.toLowerCase().includes(q) || q.includes(item.tema.toLowerCase())) {
-        return `[SPARK-MEMORIA // TEMA: ${item.tema}]\nSpark: Me acuerdo de esto —me lo aportó ${item.persona || "Alexi"}.\nDato: ${item.dato}`;
+      const it = mem.conocimientos[i];
+      if (q.includes(it.tema.toLowerCase()) || it.tema.toLowerCase().includes(q)) {
+        return prefix + `[Memoria // ${it.tema}] (${it.persona || "Alexi"}): ${it.dato}`;
       }
     }
 
-    // 2. Cálculos y ~zeit
-    const mathAns = tryMath(text);
-    if (mathAns) return mathAns;
+    const c = calcExpr(out, lang);
+    if (c) return prefix + c;
 
-    // 3. Generación de código FLAME / JS / Rust
-    if (q.includes("generar") || q.includes("plantilla") || q.includes("rust") || q.includes("javascript") || q.includes("js")) {
-      return generateTemplates();
+    if (/\b(plugin|plugins|termux|editor|tor|aloha|mt manager|navegador|calculadora)\b/i.test(q)) {
+      setCode("plugins_flame.txt", "Plugins listos: Navegador, Editor { }, Calculadora avanzada, Termux, Tor/Aloha y MT Manager.");
+      return prefix + (lang === "de"
+        ? "Plugin-Module bereit: Navegador, Code-Editor ({ }), Rechner und Profile für Termux, Tor/Aloha und MT Manager."
+        : "Módulos listos: Navegador, Editor de código ({ }), Calculadora avanzada y perfiles para Termux, Tor/Aloha y MT Manager.");
     }
 
-    // 4. Conocimiento base de FLAME y modos
-    if (q.includes("flamedash") || q.includes("dash") || currentMode === "flamedash") {
-      setCodeArtifact(
-        "ejemplo.fm",
-        `!stil flamedash\narea= 512×400\nRipetox=1\nactivision~zeit=inmediato\nactionscript~zeit=1.s\nactende~zeit=original`
-      );
-      return "Spark: flamedash controla fases y tiempos con ~zeit (inmediato, original, infinito o .ms/.s/.m/.h), area y Ripetox.";
+    if (/\bzeit\b/i.test(out) || q.includes("flamedash")) {
+      setCode("ejemplo_zeit.fm", "!stil flamedash\narea= 512x400\nRipetox=2\nactivision~Zeit=inmediato\nactionscript~Zeit=500.ms\nactende~Zeit=original");
+      return prefix + (lang === "de"
+        ? '"Zeit" steuert in flamedash Ablauf und Phasen zusammen mit Ripetox.'
+        : '"Zeit" controla tiempos y fases en flamedash junto con Ripetox.');
     }
 
-    if (q.includes("flamecode") || currentMode === "flamecode") {
-      setCodeArtifact(
-        "principal.fm",
-        `!stil flamecode\nhaupt:\n  drucken! = "Hola desde FLAME":`
-      );
-      return "Spark: flamecode es la base del código en FLAME y suele iniciar en 'haupt'.";
+    if (/^(hola|buenas|hey|hi|hallo|guten tag)\b/i.test(q)) {
+      return prefix + (lang === "de"
+        ? "Hallo! Ich bin Spark.IA. Wir können auf Deutsch oder Spanisch über FLAME, ~Zeit, Code oder neue Ideen sprechen."
+        : "¡Hola! Soy Spark.IA. Podemos hablar en español o alemán sobre FLAME, ~Zeit, código o cualquier idea nueva.");
     }
 
-    if (q.includes("flameformel") || currentMode === "flameformel") {
-      return "Spark: flameformel está pensado para fórmulas, reglas y estructuras reutilizables dentro del ecosistema FLAME.";
-    }
-
-    if (q.includes("sitmob") || q.includes("auditar") || currentMode === "sitmob") {
-      return "Spark: SitMoB revisa patrones sensibles o riesgos en scripts y bloques de ejecución.";
-    }
-
-    // 5. Palabra desconocida (como "patatim")
-    return `Spark: Todavía no conozco "${text}" ni en FLAME ni en mi memoria aprendida. Si tocas "+ Enseñar dato" en el menú, puedes explicarme qué es "${text}" y lo recordaré.`;
+    return prefix + (lang === "de"
+      ? `Zu "${out}" habe ich noch keine feste Regel, bleibe aber dran: Sag mir kurz, ob es um FLAME, ~Zeit, Code oder ein neues Wort geht.`
+      : `Sobre "${out}" aún no tengo una regla fija, pero no me quedo en blanco: dime si va por FLAME, ~Zeit, código o una palabra nueva.`);
   }
 
-  async function handleSendMessage(text) {
-    const clean = text.trim();
+  async function sendMsg(txt) {
+    const clean = txt.trim();
     if (!clean) return;
-
-    appendMessage("user", clean);
-    el.promptInput.value = "";
-    el.promptInput.style.height = "auto";
-
-    // Intenta conectar al servidor local en Go si está activo; si no, responde en el navegador
+    addMsg("user", clean);
+    if (el.promptInput) { el.promptInput.value = ""; el.promptInput.style.height = "auto"; }
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 900);
-      const res = await fetch(`${API_URL}/api/chat`, {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), 700);
+      const r = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensaje: clean, modo: currentMode }),
-        signal: controller.signal,
+        signal: ctrl.signal,
       });
-      clearTimeout(timer);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.respuesta) {
-          appendMessage("spark", data.respuesta);
-          return;
-        }
+      clearTimeout(id);
+      if (r.ok) {
+        const d = await r.json();
+        if (d?.respuesta) { addMsg("spark", d.respuesta); return; }
       }
     } catch (_) {}
-
-    appendMessage("spark", localSparkReply(clean));
+    addMsg("spark", replySmart(clean));
   }
 
-  function bindQuickPrompts() {
-    document.querySelectorAll(".chip-fire").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const p = btn.getAttribute("data-prompt") || btn.textContent;
-        handleSendMessage(p);
-      });
+  function resetChat() {
+    if (!el.chatStream) return;
+    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">SPARK.IA // ES·DE</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="plugins termux editor">Plugins</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
+    bindChips();
+  }
+
+  function bindChips() {
+    document.querySelectorAll(".chip-fire").forEach((b) => {
+      b.onclick = () => sendMsg(b.getAttribute("data-prompt") || b.textContent || "");
     });
   }
 
-  // Eventos de menú lateral
-  el.btnOpenSidebar?.addEventListener("click", () => setSidebarOpen(true));
-  el.btnCloseSidebar?.addEventListener("click", () => setSidebarOpen(false));
-  el.btnNewChat?.addEventListener("click", () => {
-    resetChat();
-    setSidebarOpen(false);
-  });
+  el.btnOpenSidebar && (el.btnOpenSidebar.onclick = () => setSidebarOpen(true));
+  el.btnCloseSidebar && (el.btnCloseSidebar.onclick = () => setSidebarOpen(false));
+  el.btnNewChat && (el.btnNewChat.onclick = () => { resetChat(); setSidebarOpen(false); });
 
-  // Selección de modos
-  el.modeList?.querySelectorAll(".mode-item").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      el.modeList.querySelectorAll(".mode-item").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      currentMode = btn.getAttribute("data-mode") || "general";
+  el.modeList?.querySelectorAll(".mode-item").forEach((b) => {
+    b.onclick = () => {
+      el.modeList.querySelectorAll(".mode-item").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      currentMode = b.getAttribute("data-mode") || "general";
       if (el.currentModeLabel) el.currentModeLabel.textContent = currentMode;
       setSidebarOpen(false);
-    });
+    };
   });
 
-  // Panel de código
-  el.btnToggleArtifact?.addEventListener("click", () => {
-    const isHidden = el.artifactPanel.classList.contains("hidden");
-    setArtifactOpen(isHidden);
-  });
-  el.btnCloseArtifact?.addEventListener("click", () => setArtifactOpen(false));
-  el.btnCopyCode?.addEventListener("click", () => {
-    navigator.clipboard?.writeText(lastCode).catch(() => {});
+  el.btnToggleArtifact && (el.btnToggleArtifact.onclick = () => setArtifactOpen(el.artifactPanel?.classList.contains("hidden")));
+  el.btnCloseArtifact && (el.btnCloseArtifact.onclick = () => setArtifactOpen(false));
+  el.btnCopyCode && (el.btnCopyCode.onclick = () => {
+    navigator.clipboard?.writeText(el.artifactCode?.textContent || lastCode).catch(() => {});
     el.btnCopyCode.textContent = "Copiado";
-    setTimeout(() => {
-      el.btnCopyCode.textContent = "Copiar";
-    }, 1200);
+    setTimeout(() => { el.btnCopyCode.textContent = "Copiar"; }, 1200);
   });
 
-  // Tema claro / oscuro
-  el.btnThemeToggle?.addEventListener("click", () => {
-    const root = document.documentElement;
-    const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
-    root.setAttribute("data-theme", next);
+  el.btnThemeToggle && (el.btnThemeToggle.onclick = () => {
+    const r = document.documentElement;
+    r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light");
   });
 
-  // Modal Enseñar
-  const openTeach = () => {
-    el.teachModal?.classList.remove("hidden");
-    setSidebarOpen(false);
-  };
+  const openTeach = () => { el.teachModal?.classList.remove("hidden"); setSidebarOpen(false); };
   const closeTeach = () => el.teachModal?.classList.add("hidden");
+  el.btnOpenTeach && (el.btnOpenTeach.onclick = openTeach);
+  el.btnCloseTeach && (el.btnCloseTeach.onclick = closeTeach);
+  el.btnCancelTeach && (el.btnCancelTeach.onclick = closeTeach);
 
-  el.btnOpenTeach?.addEventListener("click", openTeach);
-  el.btnCloseTeach?.addEventListener("click", closeTeach);
-  el.btnCancelTeach?.addEventListener("click", closeTeach);
-
-  el.btnSaveTeach?.addEventListener("click", () => {
-    const tema = el.teachTema.value.trim();
-    const dato = el.teachDato.value.trim();
-    const persona = el.teachPersona.value.trim() || "Alexi";
+  el.btnSaveTeach && (el.btnSaveTeach.onclick = () => {
+    const tema = el.teachTema?.value.trim() || "";
+    const dato = el.teachDato?.value.trim() || "";
+    const persona = el.teachPersona?.value.trim() || "Alexi";
     if (!tema || !dato) return;
-
-    const mem = loadMemory();
-    mem.conocimientos.push({ tema, dato, persona, fecha: new Date().toISOString() });
-    saveMemory(mem);
-    renderMemoryFeed();
-
-    el.teachTema.value = "";
-    el.teachDato.value = "";
+    const m = loadMemory();
+    m.conocimientos.push({ tema, dato, persona });
+    saveMemory(m);
+    renderMemory();
+    if (el.teachTema) el.teachTema.value = "";
+    if (el.teachDato) el.teachDato.value = "";
     closeTeach();
-    appendMessage("spark", `Spark: Guardé "${tema}" en memoria (aporte de ${persona}). Ya puedes preguntarme por "${tema}".`);
+    addMsg("spark", `Guardado "${tema}" (${persona}).`);
   });
 
-  // Menú de comandos rápidos (sin atajos de teclado)
-  el.btnQuickMenu?.addEventListener("click", () => el.cmdModal?.classList.remove("hidden"));
-  el.btnCloseCmd?.addEventListener("click", () => el.cmdModal?.classList.add("hidden"));
+  el.btnQuickMenu && (el.btnQuickMenu.onclick = () => el.cmdModal?.classList.remove("hidden"));
+  el.btnCloseCmd && (el.btnCloseCmd.onclick = () => el.cmdModal?.classList.add("hidden"));
 
-  document.querySelectorAll(".menu-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const action = btn.getAttribute("data-action");
+  document.querySelectorAll(".menu-btn").forEach((b) => {
+    b.onclick = () => {
+      const a = b.getAttribute("data-action");
       el.cmdModal?.classList.add("hidden");
-      if (action === "new") resetChat();
-      if (action === "teach") openTeach();
-      if (action === "artifact") setArtifactOpen(el.artifactPanel.classList.contains("hidden"));
-      if (action === "theme") {
-        const root = document.documentElement;
-        const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
-        root.setAttribute("data-theme", next);
+      if (a === "new") resetChat();
+      if (a === "teach") openTeach();
+      if (a === "artifact") setArtifactOpen(el.artifactPanel?.classList.contains("hidden"));
+      if (a === "theme") {
+        const r = document.documentElement;
+        r.setAttribute("data-theme", r.getAttribute("data-theme") === "light" ? "dark" : "light");
       }
-    });
+    };
   });
 
-  // Envío del formulario
-  el.chatForm?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    handleSendMessage(el.promptInput.value);
-  });
-
-  el.promptInput?.addEventListener("input", () => {
+  el.chatForm && (el.chatForm.onsubmit = (e) => { e.preventDefault(); sendMsg(el.promptInput?.value || ""); });
+  el.promptInput && (el.promptInput.oninput = () => {
     el.promptInput.style.height = "auto";
     el.promptInput.style.height = `${Math.min(el.promptInput.scrollHeight, 160)}px`;
   });
 
-  renderMemoryFeed();
-  bindQuickPrompts();
+  renderMemory();
+  bindChips();
 })();
