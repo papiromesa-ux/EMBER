@@ -3,158 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spark.IA — Núcleo de Inteligencia FLAME</title>
+  <title>Spark.IA — Núcleo FLAME</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app-shell">
-    <!-- BARRA LATERAL IZQUIERDA (Estructura tipo Claude + Gestión Vercel) -->
-    <aside class="sidebar" id="sidebar">
+    <!-- MENÚ LATERAL (Abre y cierra en celular y computadora) -->
+    <aside class="sidebar closed" id="sidebar">
       <div class="sidebar-header">
         <div class="brand">
           <span class="flame-dot"></span>
           <span class="brand-name">SPARK.IA</span>
           <span class="brand-tag">v0.3</span>
         </div>
-        <button class="icon-btn" id="btnToggleSidebar" title="Contraer barra (Ctrl+B)">☰</button>
+        <button class="icon-btn" id="btnCloseSidebar" title="Cerrar menú">✕</button>
       </div>
 
-      <button class="btn-fire-primary" id="btnNewChat">
-        <span>+ Nueva sesión</span>
-        <kbd>Ctrl+N</kbd>
-      </button>
+      <button class="btn-fire" id="btnNewChat">+ Nueva sesión</button>
 
       <div class="sidebar-section">
-        <div class="section-label">MODOS DEL ECOSISTEMA</div>
+        <div class="section-label">MODOS</div>
         <div class="mode-list" id="modeList">
-          <button class="mode-item active" data-mode="general"> Asistente General</button>
-          <button class="mode-item" data-mode="flamecode"> !stil flamecode</button>
-          <button class="mode-item" data-mode="flamedash"> !stil flamedash</button>
-          <button class="mode-item" data-mode="flameformel"> !stil flameformel</button>
-          <button class="mode-item" data-mode="sitmob"> Auditoría SitMoB</button>
+          <button class="mode-item active" data-mode="general">🔥 Asistente General</button>
+          <button class="mode-item" data-mode="flamecode">⚡ !stil flamecode</button>
+          <button class="mode-item" data-mode="flamedash">⏱️ !stil flamedash</button>
+          <button class="mode-item" data-mode="flameformel">📐 !stil flameformel</button>
+          <button class="mode-item" data-mode="sitmob">🛡️ SitMoB</button>
         </div>
       </div>
 
       <div class="sidebar-section grow">
-        <div class="section-label">MEMORIA Y SNAPSHOTS</div>
+        <div class="section-label">MEMORIA</div>
         <div class="memory-feed" id="memoryFeed">
-          <div class="empty-hint">Sin registros recientes en sesión.</div>
+          <div class="empty-hint">Sin registros recientes.</div>
         </div>
       </div>
 
       <div class="sidebar-footer">
         <div class="status-pill">
           <span class="pulse"></span>
-          <span id="statusText">100/100 Funciones Listas</span>
+          <span id="statusText">Spark.IA Listo</span>
         </div>
-        <button class="btn-ghost" id="btnOpenTeach">+ Enseñar dato</button>
+        <button class="btn-glass" id="btnOpenTeach">+ Enseñar dato</button>
       </div>
     </aside>
 
-    <!-- ÁREA CENTRAL DE CONVERSACIÓN (Estilo Claude + Tipografía Deezer) -->
+    <!-- ÁREA PRINCIPAL -->
     <main class="workspace">
-      <!-- BARRA SUPERIOR DE GESTIÓN (Estilo Vercel) -->
       <header class="topbar">
         <div class="topbar-left">
-          <span class="breadcrumb">papiromesa-ux / <strong>FLAME</strong> / <span id="currentModeLabel">general</span></span>
+          <button class="icon-btn" id="btnOpenSidebar" title="Abrir menú">☰</button>
+          <span class="breadcrumb">FLAME / <strong id="currentModeLabel">general</strong></span>
         </div>
         <div class="topbar-right">
-          <button class="btn-cmd" id="btnCommandPalette" title="Paleta de comandos">
-            <span>Comandos rápidos</span>
-            <kbd>Ctrl+K</kbd>
-          </button>
-          <button class="icon-btn" id="btnToggleArtifact" title="Panel de Código / Artefacto">{ }</button>
-          <button class="icon-btn" id="btnThemeToggle" title="Alternar Fuego Oscuro / Blanco">◐</button>
+          <button class="btn-glass small" id="btnQuickMenu">Comandos</button>
+          <button class="icon-btn" id="btnToggleArtifact" title="Panel de código">{ }</button>
+          <button class="icon-btn" id="btnThemeToggle" title="Cambiar color">◐</button>
         </div>
       </header>
 
-      <!-- HISTORIAL DEL CHAT -->
       <section class="chat-stream" id="chatStream">
         <div class="welcome-hero">
-          <div class="hero-badge">SPARK.IA ENGINE // GO + FLAME</div>
+          <div class="hero-badge">SPARK.IA // FUEGO &amp; CRISTAL</div>
           <h1 class="hero-title">Enciende tu código con precisión.</h1>
           <p class="hero-subtitle">
-            Analiza archivos <code>.fm</code>, calcula tiempos <code>~zeit</code>, genera plantillas en FLAME, JS o Rust y guarda conocimiento vivo.
+            Pregunta por <code>flamedash</code>, calcula tiempos, genera código base o prueba palabras nuevas como <code>patatim</code>.
           </p>
           <div class="quick-prompts">
-            <button class="chip-fire" data-prompt="Analiza la estructura de un bloque flamedash con ~zeit"> Estructura flamedash</button>
-            <button class="chip-fire" data-prompt="Genera una plantilla base en FLAME, JS y Rust"> Plantilla FLAME / JS / Rust</button>
-            <button class="chip-fire" data-prompt="250.ms * Ripetox=8 en s"> Calcular ~zeit y Ripetox</button>
-            <button class="chip-fire" data-prompt="¿Qué es patatim?"> Probar palabra nueva</button>
+            <button class="chip-fire" data-prompt="flamedash">flamedash</button>
+            <button class="chip-fire" data-prompt="generar codigo flame, js y rust">Plantillas FLAME / JS / Rust</button>
+            <button class="chip-fire" data-prompt="250.ms * Ripetox=8 en s">Calcular ~zeit</button>
+            <button class="chip-fire" data-prompt="patatim">Probar patatim</button>
           </div>
         </div>
       </section>
 
-      <!-- CAJA DE ENTRADA (Estilo Claude + Botones Firebase) -->
       <footer class="composer-wrap">
-        <div class="composer-box">
+        <form class="composer-box" id="chatForm">
           <textarea
             id="promptInput"
             rows="1"
-            placeholder="Escribe una consulta, un cálculo, código .fm o una palabra nueva..."
+            placeholder="Escribe aquí (ej. patatim, flamedash, 25*4)..."
           ></textarea>
-          <div class="composer-toolbar">
-            <div class="composer-tools">
-              <button class="tool-tag" data-insert="!stil flamedash\n">!stil</button>
-              <button class="tool-tag" data-insert="~zeit=1.s">~zeit</button>
-              <button class="tool-tag" data-insert="Ripetox=4">Ripetox</button>
-              <button class="tool-tag" data-insert="auditar: ">SitMoB</button>
-            </div>
-            <button class="btn-send-fire" id="btnSend">
-              <span>Enviar</span>
-              <span>➤</span>
-            </button>
+          <div class="composer-bar">
+            <span class="composer-hint">Toca Enviar para consultar</span>
+            <button type="submit" class="btn-send" id="btnSend">Enviar ➤</button>
           </div>
-        </div>
+        </form>
       </footer>
     </main>
 
-    <!-- PANEL LATERAL DERECHO: ARTEFACTO / CÓDIGO (Estilo Claude) -->
+    <!-- PANEL LATERAL DERECHO DE CÓDIGO -->
     <aside class="artifact-panel hidden" id="artifactPanel">
       <div class="artifact-header">
-        <div>
-          <span class="artifact-badge">VISTA DE CÓDIGO</span>
-          <h3 id="artifactTitle">salida.fm</h3>
-        </div>
+        <h3 id="artifactTitle">Código</h3>
         <div class="artifact-actions">
-          <button class="btn-ghost small" id="btnCopyCode">Copiar</button>
-          <button class="icon-btn" id="btnCloseArtifact">✕</button>
+          <button class="btn-glass small" id="btnCopyCode">Copiar</button>
+          <button class="icon-btn" id="btnCloseArtifact" title="Cerrar panel">✕</button>
         </div>
       </div>
-      <pre class="artifact-code"><code id="artifactCode">// Aquí aparecerá el código generado o el análisis de tu archivo .fm</code></pre>
+      <pre class="artifact-code"><code id="artifactCode">// Aquí aparecerá el código generado.</code></pre>
     </aside>
   </div>
 
-  <!-- MODAL PARA ENSEÑAR CONOCIMIENTO NUEVO (Estilo Firebase) -->
+  <!-- MODAL PARA ENSEÑAR -->
   <div class="modal-backdrop hidden" id="teachModal">
     <div class="modal-card">
       <div class="modal-head">
-        <h3> Enseñar a Spark.IA</h3>
+        <h3>Enseñar a Spark.IA</h3>
         <button class="icon-btn" id="btnCloseTeach">✕</button>
       </div>
-      <p class="modal-desc">Guarda un término, regla o comando en la memoria persistente con crédito al autor.</p>
-      <label>Tema o palabra clave</label>
-      <input type="text" id="teachTema" placeholder="Ej. patatim o flamedash" />
-      <label>Definición o regla</label>
-      <textarea id="teachDato" rows="3" placeholder="Explica qué significa o cómo se usa..."></textarea>
+      <label>Palabra o tema</label>
+      <input type="text" id="teachTema" placeholder="Ej. patatim" />
+      <label>Significado o dato</label>
+      <textarea id="teachDato" rows="3" placeholder="Escribe qué significa o cómo funciona..."></textarea>
       <label>Aportado por</label>
       <input type="text" id="teachPersona" value="Alexi" />
       <div class="modal-actions">
-        <button class="btn-ghost" id="btnCancelTeach">Cancelar</button>
-        <button class="btn-fire-primary" id="btnSaveTeach">Guardar en Memoria</button>
+        <button class="btn-glass" id="btnCancelTeach">Cancelar</button>
+        <button class="btn-fire" id="btnSaveTeach">Guardar</button>
       </div>
     </div>
   </div>
 
-  <!-- PALETA DE COMANDOS DE ESCRITORIO (Estilo Vercel Ctrl+K) -->
+  <!-- MENÚ DE COMANDOS (Sin atajos de teclado) -->
   <div class="modal-backdrop hidden" id="cmdModal">
-    <div class="modal-card cmd-card">
-      <input type="text" id="cmdSearch" placeholder="Escribe un comando (ej. nuevo, limpiar, enseñar, tema)..." />
-      <div class="cmd-list" id="cmdList">
-        <button class="cmd-option" data-action="new"><span>Nueva conversación</span><kbd>Ctrl+N</kbd></button>
-        <button class="cmd-option" data-action="teach"><span>Enseñar dato nuevo a Spark</span><kbd>Ctrl+E</kbd></button>
-        <button class="cmd-option" data-action="artifact"><span>Abrir / Cerrar panel de código</span><kbd>Ctrl+I</kbd></button>
-        <button class="cmd-option" data-action="theme"><span>Cambiar tema (Fuego Oscuro / Blanco)</span><kbd>Ctrl+J</kbd></button>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Comandos rápidos</h3>
+        <button class="icon-btn" id="btnCloseCmd">✕</button>
+      </div>
+      <div class="menu-options">
+        <button class="menu-btn" data-action="new">Nueva sesión de chat</button>
+        <button class="menu-btn" data-action="teach">Enseñar un dato nuevo</button>
+        <button class="menu-btn" data-action="artifact">Abrir / cerrar panel de código</button>
+        <button class="menu-btn" data-action="theme">Alternar fondo oscuro / claro</button>
       </div>
     </div>
   </div>
