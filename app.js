@@ -1,14 +1,9 @@
 (() => {
-  const STORAGE_KEY = "spark_ia_web_memoria_v3";
+  const STORAGE_KEY = "ember_ia_memoria_v5";
   const API_URL = "http://127.0.0.1:8080";
   let currentMode = "general";
   let activeLang = "es";
-  let lastCode = "// Editor Spark.IA";
-  let profile = {
-    name: "Spark.IA",
-    gender: "femenina",
-    role: "Asistente femenina del núcleo FLAME (ES/DE)",
-  };
+  let lastCode = "// Editor Ember IA";
 
   const el = {
     sidebar: document.getElementById("sidebar"),
@@ -45,17 +40,26 @@
   function loadMemory() {
     try {
       const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      return {
-        conocimientos: Array.isArray(d.conocimientos) ? d.conocimientos : [],
-        cuenta: d.cuenta || profile,
-      };
+      return { conocimientos: Array.isArray(d.conocimientos) ? d.conocimientos : [] };
     } catch (_) {
-      return { conocimientos: [], cuenta: profile };
+      return { conocimientos: [] };
     }
   }
 
   function saveMemory(m) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(m)); } catch (_) {}
+  }
+
+  function autoLearn(tema, dato, persona = "Ember-Auto") {
+    const m = loadMemory();
+    const idx = m.conocimientos.findIndex((x) => x.tema.toLowerCase() === tema.toLowerCase());
+    if (idx >= 0) {
+      m.conocimientos[idx] = { tema, dato, persona };
+    } else {
+      m.conocimientos.push({ tema, dato, persona });
+    }
+    saveMemory(m);
+    renderMemory();
   }
 
   function esc(s) {
@@ -64,17 +68,15 @@
 
   function renderMemory() {
     const m = loadMemory();
-    profile = m.cuenta || profile;
     if (el.statusText) {
-      el.statusText.textContent = `${profile.name} (♀ ${activeLang.toUpperCase()}) · ${m.conocimientos.length} notas`;
+      el.statusText.textContent = `Ember (${activeLang.toUpperCase()}) · ${m.conocimientos.length} notas`;
     }
     if (!el.memoryFeed) return;
-    const headerCard = `<div class="memory-chip"><strong>Cuenta:</strong> ${esc(profile.name)} · Identidad ${esc(profile.gender)}</div>`;
     if (!m.conocimientos.length) {
-      el.memoryFeed.innerHTML = headerCard + `<div class="empty-hint">Sin registros guardados aún.</div>`;
+      el.memoryFeed.innerHTML = `<div class="empty-hint">Sin registros guardados aún.</div>`;
       return;
     }
-    el.memoryFeed.innerHTML = headerCard + m.conocimientos.slice().reverse()
+    el.memoryFeed.innerHTML = m.conocimientos.slice().reverse()
       .map((x) => `<div class="memory-chip"><strong>${esc(x.tema)}</strong>: ${esc(x.dato)}</div>`).join("");
   }
 
@@ -110,41 +112,13 @@
   }
 
   function resolveLang(text, lower) {
-    if (/^(español|espanol|en español|habla español|spanish)$/i.test(text.trim())) {
-      activeLang = "es";
-      return "es";
-    }
-    if (/^(alemán|aleman|deutsch|auf deutsch|german)$/i.test(text.trim())) {
-      activeLang = "de";
-      return "de";
-    }
-    const hasDeWords = /\b(ich|du|wir|was|wie|ist|sind|bitte|danke|hallo|guten tag)\b|[äöüß]/i.test(lower);
-    const hasEsWords = /\b(hola|que|qué|como|cómo|dame|codigo|código|tiempo|palabra|nuevo|nueva|cuenta|mujer)\b|[ñáéíóú¿¡]/i.test(lower);
-    if (hasEsWords && !hasDeWords) { activeLang = "es"; return "es"; }
-    if (hasDeWords && !hasEsWords) { activeLang = "de"; return "de"; }
+    if (/^(español|espanol|en español|habla español)$/i.test(text.trim())) { activeLang = "es"; return "es"; }
+    if (/^(alemán|aleman|deutsch|auf deutsch)$/i.test(text.trim())) { activeLang = "de"; return "de"; }
+    const hasDe = /\b(ich|du|wir|was|wie|ist|sind|bitte|danke|hallo)\b|[äöüß]/i.test(lower);
+    const hasEs = /\b(hola|que|qué|como|cómo|link|resumen|calcula|explora|navega)\b|[ñáéíóú¿¡]/i.test(lower);
+    if (hasEs && !hasDe) { activeLang = "es"; return "es"; }
+    if (hasDe && !hasEs) { activeLang = "de"; return "de"; }
     return activeLang;
-  }
-
-  function tryCodeRequest(lower, lang) {
-    if (/\bjava\b/i.test(lower)) {
-      setCode("Main.java", `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Spark.IA activa en Java");\n    }\n}`);
-      return lang === "de"
-        ? "Ich habe ein Basis-Beispiel in Java im Code-Editor ({ }) geöffnet."
-        : "Te preparé una base en Java y la abrí en el panel de código ({ }).";
-    }
-    if (/\brust\b/i.test(lower)) {
-      setCode("main.rs", `fn main() {\n    println!("Spark.IA activa en Rust");\n}`);
-      return lang === "de"
-        ? "Ich habe ein Basis-Beispiel in Rust im Code-Editor ({ }) geöffnet."
-        : "Te dejé una base en Rust abierta en el panel de código ({ }).";
-    }
-    if (/\b(javascript|js)\b/i.test(lower)) {
-      setCode("script.js", `export function runSpark() {\n  console.log("Spark.IA activa en JS");\n}`);
-      return lang === "de"
-        ? "Ich habe ein Basis-Beispiel in JavaScript im Code-Editor ({ }) geöffnet."
-        : "Te dejé una base en JavaScript abierta en el panel de código ({ }).";
-    }
-    return null;
   }
 
   function calcExpr(t, lang) {
@@ -154,11 +128,56 @@
       try {
         const val = Function(`"use strict"; return (${m[0]});`)();
         if (typeof val === "number" && Number.isFinite(val)) {
-          return lang === "de" ? `Rechner: ${m[0].trim()} = ${val}` : `Calculadora: ${m[0].trim()} = ${val}`;
+          const ans = `${m[0].trim()} = ${val}`;
+          autoLearn(m[0].trim(), String(val), "Ember-Calc");
+          return lang === "de" ? `Rechner: ${ans}` : `Calculadora: ${ans}`;
         }
       } catch (_) {}
     }
     return null;
+  }
+
+  function extractUrls(t) {
+    return t.match(/https?:\/\/[^\s]+/gi) || [];
+  }
+
+  async function tryExploreUrls(urls, lang) {
+    try {
+      const ctrl = new AbortController();
+      const id = setTimeout(() => ctrl.abort(), 6000);
+      const r = await fetch(`${API_URL}/api/explorar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(id);
+      if (r.ok) {
+        const d = await r.json();
+        if (Array.isArray(d.resultados) && d.resultados.length) {
+          d.resultados.forEach((item) => {
+            if (item.titulo && item.resumen) {
+              autoLearn(item.titulo, item.resumen, "Ember-Explorer");
+            }
+          });
+          const resumenTotal = d.resultados
+            .map((x) => `• ${x.titulo || x.url}: ${x.resumen}`)
+            .join("\n\n");
+          setCode("exploracion_ember.txt", resumenTotal);
+          return lang === "de"
+            ? `Ich habe ${d.resultados.length} Seite(n) über deinen Termux-Server gelesen, zusammengefasst und im Speicher abgelegt:\n\n${resumenTotal}`
+            : `Leí ${d.resultados.length} sitio(s) usando tu servidor en Termux, saqué el resumen y ya lo guardé en mi memoria:\n\n${resumenTotal}`;
+        }
+      }
+    } catch (_) {}
+
+    urls.forEach((u) => {
+      autoLearn(u, "Enlace registrado para lectura cuando el servidor Go en Termux esté activo.", "Ember-Web");
+    });
+    setCode("enlaces_pendientes.txt", urls.join("\n"));
+    return lang === "de"
+      ? `Ich habe ${urls.length} Link(s) im Panel ({ }) und im Speicher gesichert. Starte den Go-Server in Termux, damit ich die Seiten direkt auslese und zusammenfasse.`
+      : `Guardé ${urls.length} enlace(s) en el panel ({ }) y en memoria. Enciende tu servidor Go en Termux para que Ember entre, lea los sitios y saque los resúmenes automáticamente.`;
   }
 
   function replySmart(raw) {
@@ -167,44 +186,25 @@
     const lang = resolveLang(out, q);
     const prefix = notes.length ? `[Corrección: ${notes.join(", ")}]\n` : "";
 
-    if (/^(español|espanol|en español|habla español)$/i.test(q)) {
-      renderMemory();
-      return prefix + "Listo, cambiamos a español. Estoy lista para ayudarte.";
-    }
-    if (/^(alemán|aleman|deutsch|auf deutsch)$/i.test(q)) {
-      renderMemory();
-      return prefix + "Alles klar, wir sprechen jetzt auf Deutsch. Ich bin bereit.";
-    }
-
-    if (/\b(cuenta|mujer|femenina|genero|género)\b/i.test(q)) {
-      const m = loadMemory();
-      m.cuenta = { name: "Spark.IA", gender: "femenina", role: "Asistente femenina del núcleo FLAME" };
-      saveMemory(m);
-      renderMemory();
-      return prefix + (lang === "de"
-        ? "Dein Konto für Spark.IA ist mit weiblicher Identität gespeichert. Sie gibt dir damit einen klaren Stil und Charakter, auch wenn technische Grenzen separat behandelt werden."
-        : "Tu cuenta de Spark.IA quedó configurada con identidad femenina. Eso le da carácter y constancia al hablar, aunque la capacidad técnica y las reglas del sistema se trabajan aparte.");
-    }
-
     const mem = loadMemory();
     for (let i = mem.conocimientos.length - 1; i >= 0; i--) {
       const it = mem.conocimientos[i];
-      if (q.includes(it.tema.toLowerCase()) || it.tema.toLowerCase().includes(q)) {
-        return prefix + `[Memoria // ${it.tema}] (${it.persona || "Alexi"}): ${it.dato}`;
+      if (q === it.tema.toLowerCase() || (it.tema.length > 3 && q.includes(it.tema.toLowerCase()))) {
+        return prefix + `[Memoria // ${it.tema}] (${it.persona}): ${it.dato}`;
       }
     }
 
-    const codeAns = tryCodeRequest(q, lang);
-    if (codeAns) return prefix + codeAns;
+    const c = calcExpr(out, lang);
+    if (c) return prefix + c;
 
-    const calcAns = calcExpr(out, lang);
-    if (calcAns) return prefix + calcAns;
-
-    if (/\b(plugin|plugins|termux|editor|tor|aloha|mt manager|navegador|calculadora)\b/i.test(q)) {
-      setCode("plugins_flame.txt", "Plugins listos: Navegador, Editor { }, Calculadora avanzada, Termux, Tor/Aloha y MT Manager.");
+    if (/\b(plugin|plugins|conector|conectores|termux|editor|tor|aloha|mt manager|navegador|explorar|navegar)\b/i.test(q)) {
+      setCode(
+        "conectores_ember.txt",
+        `Conectores sistémicos de Ember:\n1. Memoria automática (guarda resúmenes y resultados)\n2. Explorador web (/api/explorar en Go/Termux para leer URLs y aprender)\n3. Panel de código ({ }) y flujo con Termux / Editor / MT Manager`
+      );
       return prefix + (lang === "de"
-        ? "Ich habe die Module für Navegador, Code-Editor ({ }), Rechner sowie Termux, Tor/Aloha und MT Manager bereit."
-        : "Tengo listos los módulos de Navegador, Editor de código ({ }), Calculadora avanzada y perfiles para Termux, Tor/Aloha y MT Manager.");
+        ? "Ember speichert Gelerntes automatisch und kann über den Go-Server in Termux Webseiten auslesen und zusammenfassen."
+        : "Ember guarda automáticamente lo que aprende y, cuando le pasas enlaces con tu servidor Go activo en Termux, los lee, los resume y se llena de información.");
     }
 
     if (/\bzeit\b/i.test(out) || q.includes("flamedash")) {
@@ -216,13 +216,13 @@
 
     if (/^(hola|buenas|hey|hi|hallo|guten tag)\b/i.test(q)) {
       return prefix + (lang === "de"
-        ? "Hallo! Ich bin Spark.IA. Wir können auf Deutsch oder Spanisch über FLAME, ~Zeit, Code oder neue Ideen sprechen."
-        : "¡Hola! Soy Spark.IA. Podemos hablar en español o alemán sobre FLAME, ~Zeit, código o lo que quieras crear.");
+        ? "Hallo, ich bin Ember. Schick mir Links zum Auslesen, Berechnungen oder Fragen zu FLAME."
+        : "¡Hola! Soy Ember. Pásame enlaces para leer y resumir, cálculos o consultas de FLAME.");
     }
 
     return prefix + (lang === "de"
-      ? `Zu "${out}" habe ich noch keinen festen Eintrag, aber ich bleibe aktiv: Sag mir, ob es um FLAME, ~Zeit, Code oder ein neues Wort geht.`
-      : `Sobre "${out}" aún no tengo una regla fija, pero sigo activa: dime si va por FLAME, ~Zeit, código o una palabra nueva.`);
+      ? `Zu "${out}" habe ich noch keinen festen Eintrag, bleibe aber aktiv: Schick mir einen Link dazu oder erkläre es mir kurz, damit ich es speichere.`
+      : `Sobre "${out}" aún no tengo una regla fija, pero sigo activa: pásame un enlace sobre eso o explícame qué es y lo guardo en mi memoria.`);
   }
 
   async function sendMsg(txt) {
@@ -230,6 +230,15 @@
     if (!clean) return;
     addMsg("user", clean);
     if (el.promptInput) { el.promptInput.value = ""; el.promptInput.style.height = "auto"; }
+
+    const urls = extractUrls(clean);
+    if (urls.length) {
+      const lang = resolveLang(clean, clean.toLowerCase());
+      const res = await tryExploreUrls(urls, lang);
+      addMsg("spark", res);
+      return;
+    }
+
     try {
       const ctrl = new AbortController();
       const id = setTimeout(() => ctrl.abort(), 700);
@@ -250,7 +259,7 @@
 
   function resetChat() {
     if (!el.chatStream) return;
-    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">SPARK.IA // ES·DE</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="Dame código de Java">Código Java</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
+    el.chatStream.innerHTML = `<div class="welcome-hero"><div class="hero-badge">EMBER IA // ES·DE &amp; MEMORIA</div><h1 class="hero-title">Enciende tu código con precisión.</h1><div class="quick-prompts"><button class="chip-fire" data-prompt="Was ist Zeit?">Alemán / Zeit</button><button class="chip-fire" data-prompt="conectores ember">Conectores</button><button class="chip-fire" data-prompt="(250 * 8) + 100">Calculadora</button></div></div>`;
     bindChips();
   }
 
@@ -298,10 +307,7 @@
     const dato = el.teachDato?.value.trim() || "";
     const persona = el.teachPersona?.value.trim() || "Alexi";
     if (!tema || !dato) return;
-    const m = loadMemory();
-    m.conocimientos.push({ tema, dato, persona });
-    saveMemory(m);
-    renderMemory();
+    autoLearn(tema, dato, persona);
     if (el.teachTema) el.teachTema.value = "";
     if (el.teachDato) el.teachDato.value = "";
     closeTeach();
