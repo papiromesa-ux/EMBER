@@ -1,6 +1,6 @@
 (() => {
   const STORAGE_KEY = "ember_ia_memoria_v5";
-  const API_URL = "http://127.0.0.1:8080";
+  const API_URL = "http://127.0.0.1:8000";
   let currentMode = "general";
   let activeLang = "es";
   let lastCode = "// Editor Ember IA";
