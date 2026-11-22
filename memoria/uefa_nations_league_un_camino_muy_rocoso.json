@@ -1,6 +1,0 @@
-{
-  "tema": "UEFA Nations League: un camino muy rocoso para la campeona del mundo | CNN",
-  "dato": "UEFA Nations League: un camino muy rocoso para la campeona del mundo | CNN (function () { let previousScrollWidth = 0; const set = function () { var sw = window.innerWidth - document.documentElement.clientWidth; if (sw !== previousScrollWidth) { previousScrollWidth = sw; document.documentElement.style.setProperty('--scrollbar-width', sw + 'px'); return; } };...",
-  "persona": "Ember-Explorer",
-  "fecha": "2026-11-21T20:25:30Z"
-}
