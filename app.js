@@ -238,34 +238,55 @@
   }
 
   async function sendMsg(txt) {
-    const clean = txt.trim();
-    if (!clean) return;
-    addMsg("user", clean);
-    if (el.promptInput) { el.promptInput.value = ""; el.promptInput.style.height = "auto"; }
+  const clean = txt.trim();
+  if (!clean) return;
+  addMsg("user", clean);
+  if (el.promptInput) { el.promptInput.value = ""; el.promptInput.style.height = "auto"; }
 
-    const lang = resolveLang(clean, clean.toLowerCase());
-    const directCalc = calcExpr(clean, lang);
-    if (directCalc) {
-      addMsg("spark", directCalc);
-      return;
-    }
+  // Burbuja de "Pensando" para que sepas que la IA está trabajando
+  const thinkingMsg = document.createElement("div");
+  thinkingMsg.className = "msg spark";
+  thinkingMsg.textContent = "Ember está pensando... (esto puede tardar hasta 30 segundos en tu celular)";
+  el.chatStream?.appendChild(thinkingMsg);
+  thinkingMsg.scrollIntoView({ behavior: "smooth", block: "end" });
 
-    try {
-      const ctrl = new AbortController();
-      const id = setTimeout(() => ctrl.abort(), 700);
-      const r = await fetch(`${API_URL}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensaje: clean, nivel_razonamiento: "bajo" }),
-        signal: ctrl.signal,
-      });
-      clearTimeout(id);
-      if (r.ok) {
-        const d = await r.json();
-        if (d?.respuesta) { addMsg("spark", d.respuesta); return; }
+  const lang = resolveLang(clean, clean.toLowerCase());
+  const directCalc = calcExpr(clean, lang);
+  
+  // Si es una suma/resta simple, JS lo resuelve rápido
+  if (directCalc) {
+    thinkingMsg.remove();
+    addMsg("spark", directCalc);
+    return;
+  }
+
+  try {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), 60000);
+    
+    const r = await fetch(`${API_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensaje: clean, nivel_razonamiento: "bajo" }),
+      signal: ctrl.signal,
+    });
+    
+    clearTimeout(id);
+    
+    if (r.ok) {
+      const d = await r.json();
+      thinkingMsg.remove(); 
+      if (d?.respuesta) { 
+        addMsg("spark", d.respuesta); 
+        return; 
       }
-    } catch (_) {}
-    addMsg("spark", replySmart(clean));
+    }
+  } catch (_) {
+    thinkingMsg.remove();
+  }
+  
+  
+  addMsg("spark", replySmart(clean));
   }
 
   function resetChat() {
