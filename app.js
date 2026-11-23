@@ -243,14 +243,6 @@
     addMsg("user", clean);
     if (el.promptInput) { el.promptInput.value = ""; el.promptInput.style.height = "auto"; }
 
-    const urls = extractUrls(clean);
-    if (urls.length) {
-      const lang = resolveLang(clean, clean.toLowerCase());
-      const res = await tryExploreUrls(urls, lang);
-      addMsg("spark", res);
-      return;
-    }
-
     const lang = resolveLang(clean, clean.toLowerCase());
     const directCalc = calcExpr(clean, lang);
     if (directCalc) {
@@ -264,7 +256,7 @@
       const r = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensaje: clean, modo: currentMode }),
+        body: JSON.stringify({ mensaje: clean, nivel_razonamiento: "bajo" }),
         signal: ctrl.signal,
       });
       clearTimeout(id);
