@@ -1,0 +1,22 @@
+# Modelos: pesan demasiado para GitHub (límite 100 MB)
+*.gguf
+*.bin
+*.safetensors
+
+# Memoria local del usuario (datos personales)
+memoria_privada/
+memoria_publica/
+memoria_oficial/
+
+# Copias de seguridad y temporales
+.backup-v0.3/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Entorno del agente
+.opencode/

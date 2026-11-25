@@ -2,8 +2,11 @@
 <html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Ember — Núcleo FLAME</title>
+  <meta name="theme-color" content="#090708" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -14,7 +17,7 @@
         <div class="brand">
           <span class="flame-dot"></span>
           <span class="brand-name">EMBER</span>
-          <span class="brand-tag">v0.3</span>
+          <span class="brand-tag">v0.4</span>
         </div>
         <button class="icon-btn" id="btnCloseSidebar" title="Cerrar menú">✕</button>
       </div>
@@ -40,9 +43,9 @@
       </div>
 
       <div class="sidebar-footer">
-        <div class="status-pill">
+        <div class="status-pill" id="statusPill">
           <span class="pulse"></span>
-          <span id="statusText">Ember Listo</span>
+          <span id="statusText">Conectando…</span>
         </div>
         <button class="btn-glass" id="btnOpenTeach">+ Enseñar dato</button>
       </div>
@@ -62,18 +65,24 @@
         </div>
       </header>
 
+      <div class="conn-banner hidden" id="connBanner">
+        <span id="connBannerText">Sin conexión con el servidor de Ember.</span>
+        <button class="btn-glass small" id="btnConfigApi">Configurar URL</button>
+      </div>
+
       <section class="chat-stream" id="chatStream">
         <div class="welcome-hero">
           <div class="hero-badge">EMBER // FUEGO &amp; CRISTAL</div>
           <h1 class="hero-title">Enciende tu código con precisión.</h1>
           <p class="hero-subtitle">
-            Pregunta por <code>flamedash</code>, calcula tiempos, genera código base o prueba palabras nuevas como <code>patatim</code>.
+            Asistente de código que corre <strong>en tu teléfono</strong>, sin nube.
+            Pregunta lo que quieras o pégame un enlace para leerlo.
           </p>
           <div class="quick-prompts">
-            <button class="chip-fire" data-prompt="flamedash">flamedash</button>
-            <button class="chip-fire" data-prompt="generar codigo flame, js y rust">Plantillas FLAME / JS / Rust</button>
-            <button class="chip-fire" data-prompt="250.ms * Ripetox=8 en s">Calcular ~zeit</button>
-            <button class="chip-fire" data-prompt="patatim">Probar patatim</button>
+            <button class="chip-fire" data-prompt="Explícame qué hace este código y cómo mejorarlo:">Revisar código</button>
+            <button class="chip-fire" data-prompt="Escribe una función en Python que lea un archivo JSON y devuelva las claves ordenadas.">Función Python</button>
+            <button class="chip-fire" data-prompt="250 * 8 + 100">Calculadora</button>
+            <button class="chip-fire" data-prompt="¿Qué es una API REST? Explícalo breve.">¿Qué es una API?</button>
           </div>
         </div>
       </section>
@@ -83,11 +92,14 @@
           <textarea
             id="promptInput"
             rows="1"
-            placeholder="Escribe aquí (ej. patatim, flamedash, 25*4)..."
+            placeholder="Escribe tu pregunta, pega código o un enlace…"
           ></textarea>
           <div class="composer-bar">
-            <span class="composer-hint">Toca Enviar para consultar</span>
-            <button type="submit" class="btn-send" id="btnSend">Enviar ➤</button>
+            <span class="composer-hint" id="composerHint">Toca Enviar para consultar</span>
+            <div class="composer-actions">
+              <button type="button" class="btn-glass small hidden" id="btnStop">Detener</button>
+              <button type="submit" class="btn-send" id="btnSend">Enviar ➤</button>
+            </div>
           </div>
         </form>
       </footer>
@@ -113,12 +125,18 @@
         <h3>Enseñar a Ember</h3>
         <button class="icon-btn" id="btnCloseTeach">✕</button>
       </div>
-      <label>Palabra o tema</label>
+      <label for="teachTema">Palabra o tema</label>
       <input type="text" id="teachTema" placeholder="Ej. patatim" />
-      <label>Significado o dato</label>
+      <label for="teachDato">Significado o dato</label>
       <textarea id="teachDato" rows="3" placeholder="Escribe qué significa o cómo funciona..."></textarea>
-      <label>Aportado por</label>
+      <label for="teachPersona">Aportado por</label>
       <input type="text" id="teachPersona" value="Alexi" />
+      <label for="teachTipo">Guardar en</label>
+      <select id="teachTipo">
+        <option value="privada">Memoria privada</option>
+        <option value="publica">Memoria pública</option>
+        <option value="oficial">Memoria oficial</option>
+      </select>
       <div class="modal-actions">
         <button class="btn-glass" id="btnCancelTeach">Cancelar</button>
         <button class="btn-fire" id="btnSaveTeach">Guardar</button>
@@ -126,7 +144,7 @@
     </div>
   </div>
 
-  <!-- MENÚ DE COMANDOS (Sin atajos de teclado) -->
+  <!-- MENÚ DE COMANDOS -->
   <div class="modal-backdrop hidden" id="cmdModal">
     <div class="modal-card">
       <div class="modal-head">
@@ -138,6 +156,8 @@
         <button class="menu-btn" data-action="teach">Enseñar un dato nuevo</button>
         <button class="menu-btn" data-action="artifact">Abrir / cerrar panel de código</button>
         <button class="menu-btn" data-action="theme">Alternar fondo oscuro / claro</button>
+        <button class="menu-btn" data-action="api">Configurar URL del servidor</button>
+        <button class="menu-btn" data-action="estado">Comprobar conexión</button>
       </div>
     </div>
   </div>

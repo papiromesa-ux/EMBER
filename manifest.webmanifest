@@ -1,0 +1,19 @@
+{
+  "name": "Ember IA",
+  "short_name": "Ember",
+  "description": "Asistente de código local que corre en tu teléfono",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090708",
+  "theme_color": "#090708",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

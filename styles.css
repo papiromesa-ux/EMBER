@@ -647,3 +647,200 @@ body {
     border-left: none;
   }
 }
+
+/* ============================================================
+   v0.4 — añadidos: estado, markdown, bloques de código, memoria
+   ============================================================ */
+
+/* Acciones del composer */
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-send:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* Aviso de conexión */
+.conn-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 14px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 42, 60, 0.12);
+  border: 1px solid rgba(255, 42, 60, 0.45);
+  color: var(--text-main);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+/* Estado del servidor */
+.status-pill.offline .pulse {
+  background: var(--fire-red);
+  box-shadow: 0 0 10px var(--fire-red);
+}
+
+.status-pill.warn .pulse {
+  background: var(--fire-orange);
+  box-shadow: 0 0 10px var(--fire-orange);
+}
+
+/* Texto con markdown mínimo */
+.md-text {
+  white-space: pre-wrap;
+}
+
+.md-text h3,
+.md-text h4 {
+  margin: 10px 0 4px;
+  font-size: 1rem;
+}
+
+.md-text code {
+  font-family: var(--font-code);
+  background: var(--glass-elevated);
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--fire-yellow);
+}
+
+/* Bloques de código */
+.code-block {
+  margin: 10px 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.code-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.mini-btn {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mini-btn:hover {
+  background: var(--glass-hover);
+  border-color: var(--fire-orange);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--font-code);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.code-block code {
+  color: var(--fire-yellow);
+}
+
+/* Cursor de streaming */
+.msg.streaming::after {
+  content: "▍";
+  margin-left: 2px;
+  color: var(--fire-yellow);
+  animation: ember-blink 1s steps(2, start) infinite;
+}
+
+@keyframes ember-blink {
+  to { visibility: hidden; }
+}
+
+/* Memoria con borrado */
+.memory-chip {
+  position: relative;
+  padding-right: 28px;
+}
+
+.chip-del {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.85rem;
+}
+
+.chip-del:hover {
+  background: rgba(255, 42, 60, 0.25);
+  border-color: var(--fire-red);
+  color: var(--text-main);
+}
+
+.chip-tipo {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fire-yellow);
+  opacity: 0.8;
+}
+
+.chip-dato {
+  margin-top: 3px;
+  color: var(--text-muted);
+}
+
+/* Select del modal */
+.modal-card select {
+  width: 100%;
+  background: var(--glass-bg);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 820px) {
+  .conn-banner {
+    margin: 8px 10px 0;
+    font-size: 0.8rem;
+  }
+
+  .code-block pre {
+    font-size: 0.78rem;
+  }
+}
